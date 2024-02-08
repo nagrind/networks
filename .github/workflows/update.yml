@@ -1,0 +1,80 @@
+name: Update IP prefixes
+
+on:
+  schedule:
+    - cron: '7 6 * * 5'  # UTC
+  workflow_dispatch:
+    inputs:
+      network:
+        description: Network
+
+jobs:
+  networks:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
+    steps:
+      - name: Checkout maintenance repo
+        uses: actions/checkout@v4
+        with:
+          repository: nagrind/networks-maintenance
+          token: ${{ secrets.PAT }}
+      - name: Determine matrix networks
+        id: set-matrix
+        run: |
+          if [ -n "${{ github.event.inputs.network }}" ]; then
+            readarray -d ',' -t files <<< "${{ github.event.inputs.network }}"
+          else
+            readarray -t files < <(ls -1 [A-Z0-9]*)
+          fi
+          printf -v list "'%s'," "${files[@]%$'\n'}"
+          echo "matrix=[${list%,}]" >> "${GITHUB_OUTPUT}"
+
+  analyze:
+    needs: networks
+    strategy:
+      matrix:
+        network: ${{ fromJSON(needs.networks.outputs.matrix) }}
+    runs-on: ubuntu-latest
+    container:
+      image: nagrind/rannsakanda:latest
+    steps:
+      - name: Checkout networks repo
+        uses: actions/checkout@v4
+      - name: Checkout maintenance repo
+        uses: actions/checkout@v4
+        with:
+          repository: nagrind/networks-maintenance
+          token: ${{ secrets.PAT }}
+          path: maintenance
+      - name: Wait to slightly deparallelize
+        run: sleep $[ ${RANDOM} % 10 + 1 ]s  # Max. 1000 req/h at GitHub
+        shell: bash
+      - name: Update IP prefixes
+        run: bash maintenance/${{ matrix.network }}
+      - name: Get statistics for pull request
+        id: statistics
+        run: |
+          git config --global --add safe.directory "${GITHUB_WORKSPACE}"
+          git add .
+          echo "ipv4_added=$(git status -v | grep -c -o -P '^\+[\d\./]+$' || :)" >> "${GITHUB_OUTPUT}"
+          echo "ipv4_removed=$(git status -v | grep -c -o -P '^\-[\d\./]+$' || :)" >> "${GITHUB_OUTPUT}"
+          echo "ipv6_added=$(git status -v | grep -c -o -P '^\+[\da-fA-F:/]+$' || :)" >> "${GITHUB_OUTPUT}"
+          echo "ipv6_removed=$(git status -v | grep -c -o -P '^\-[\da-fA-F:/]+$' || :)" >> "${GITHUB_OUTPUT}"
+      - name: Create pull request for review
+        uses: peter-evans/create-pull-request@v6
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          commit-message: Update IP prefixes of ${{ matrix.network }}
+          branch: workflows/update/${{ matrix.network }}
+          delete-branch: true
+          title: Update IP prefixes of ${{ matrix.network }}
+          body: |
+            Automated update of the IP prefixes of ${{ matrix.network }} with the following changes:
+            - ${{ steps.statistics.outputs.ipv4_added }} IPv4 prefixes added
+            - ${{ steps.statistics.outputs.ipv4_removed }} IPv4 prefixes removed
+            - ${{ steps.statistics.outputs.ipv6_added }} IPv6 prefixes added
+            - ${{ steps.statistics.outputs.ipv6_removed }} IPv6 prefixes removed
+          labels: automated
+          assignees: nagrind
+          reviewers: nagrind
