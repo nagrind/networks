@@ -35,6 +35,7 @@ jobs:
     strategy:
       matrix:
         network: ${{ fromJSON(needs.networks.outputs.matrix) }}
+      fail-fast: false
     runs-on: ubuntu-latest
     container:
       image: nagrind/rannsakanda:latest
