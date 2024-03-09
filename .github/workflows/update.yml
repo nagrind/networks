@@ -25,7 +25,7 @@ jobs:
           if [ -n "${{ github.event.inputs.network }}" ]; then
             readarray -d ',' -t files <<< "${{ github.event.inputs.network }}"
           else
-            readarray -t files < <(ls -1 [A-Z0-9]*)
+            readarray -t files < <(grep -E -l -r '^#!/' *)
           fi
           printf -v list "'%s'," "${files[@]%$'\n'}"
           echo "matrix=[${list%,}]" >> "${GITHUB_OUTPUT}"
