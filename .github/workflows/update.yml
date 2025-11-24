@@ -15,7 +15,7 @@ jobs:
       matrix: ${{ steps.set-matrix.outputs.matrix }}
     steps:
       - name: Checkout maintenance repo
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           repository: nagrind/networks-maintenance
           token: ${{ secrets.PAT }}
@@ -41,9 +41,9 @@ jobs:
       image: nagrind/rannsakanda:latest
     steps:
       - name: Checkout networks repo
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
       - name: Checkout maintenance repo
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           repository: nagrind/networks-maintenance
           token: ${{ secrets.PAT }}
