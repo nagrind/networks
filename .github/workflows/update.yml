@@ -63,7 +63,7 @@ jobs:
           echo "ipv6_added=$(git status -v | grep -c -o -P '^\+[\da-fA-F:/]+$' || :)" >> "${GITHUB_OUTPUT}"
           echo "ipv6_removed=$(git status -v | grep -c -o -P '^\-[\da-fA-F:/]+$' || :)" >> "${GITHUB_OUTPUT}"
       - name: Create pull request for review
-        uses: peter-evans/create-pull-request@v7
+        uses: peter-evans/create-pull-request@v8
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           commit-message: Update IP prefixes of ${{ matrix.network }}
